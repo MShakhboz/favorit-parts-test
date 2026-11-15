@@ -1,16 +1,52 @@
-# React + Vite
+# Поиск автозапчастей
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Тестовое задание: поиск автозапчастей по артикулу через API [Favorit Parts](https://favorit-parts.ru).
 
-Currently, two official plugins are available:
+1. Пользователь вводит артикул — после паузы в наборе приложение загружает список производителей, выпускающих деталь с этим номером.
+2. Пользователь выбирает производителя — приложение запрашивает деталь с аналогами и показывает таблицу предложений: наименование и производитель, склад, цена и остаток.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Обрабатываются состояния загрузки, ошибки API и сети, пустые ответы, а также устаревшие ответы при быстром вводе.
 
-## React Compiler
+## Стек
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+React 19, Redux Toolkit, Bootstrap 5, Vite. Без TypeScript.
 
-## Expanding the ESLint configuration
+## Запуск
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Нужны Node.js 20.19+ или 22.12+ и [pnpm](https://pnpm.io).
+
+```bash
+pnpm install
+cp .env.example .env.local
+```
+
+Укажите ключ покупателя Favorit в `.env.local`:
+
+```
+VITE_FAVORIT_KEY=ваш-ключ
+```
+
+```bash
+pnpm dev       # сервер разработки
+pnpm build     # сборка в dist/
+pnpm preview   # просмотр собранной версии
+pnpm lint      # ESLint
+```
+
+Ключ встраивается в клиентский бандл, поэтому виден в браузере. Для тестового задания это допустимо, в продакшене запросы стоит проксировать через свой сервер.
+
+## Структура
+
+Код организован по [Feature-Sliced Design](https://feature-sliced.design), слои импортируют только нижележащие слои через `index.js` слайса:
+
+```
+src/
+├── app/        Redux store, провайдер, глобальные стили
+├── pages/      страница поиска
+├── widgets/    список производителей, таблица предложений
+├── features/   поле поиска и слайс с запросами обоих этапов
+├── entities/   деталь: строки таблицы и сортировка предложений
+└── shared/     клиент API Favorit, Loader, ErrorAlert
+```
+
+`@/` — алиас для `src/`.
