@@ -1,12 +1,12 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
-import { getBrands } from '@/shared/api'
+import { getBrands, getOffers } from '@/shared/api'
 
 const initialState = {
   number: '',
   brands: [],
   brandsStatus: 'idle',
   brandsError: null,
-  selectedBrand: null,
+  selectedPart: null,
   offers: [],
   offersStatus: 'idle',
   offersError: null,
@@ -14,6 +14,12 @@ const initialState = {
 
 export const fetchBrands = createAsyncThunk('search/fetchBrands', (number, { signal }) =>
   getBrands(number, { signal }),
+)
+
+// part — позиция из списка производителей. Номер берём из неё, а не из поля ввода:
+// у разных брендов он записан по-разному (например, 0189 и 01-89)
+export const fetchOffers = createAsyncThunk('search/fetchOffers', (part, { signal }) =>
+  getOffers(part.number, part.brand, { signal }),
 )
 
 const searchSlice = createSlice({
@@ -27,7 +33,7 @@ const searchSlice = createSlice({
         state.brands = []
         state.brandsStatus = 'loading'
         state.brandsError = null
-        state.selectedBrand = null
+        state.selectedPart = null
         state.offers = []
         state.offersStatus = 'idle'
         state.offersError = null
@@ -39,6 +45,20 @@ const searchSlice = createSlice({
       .addCase(fetchBrands.rejected, (state, action) => {
         state.brandsStatus = 'failed'
         state.brandsError = action.error.message
+      })
+      .addCase(fetchOffers.pending, (state, action) => {
+        state.selectedPart = action.meta.arg
+        state.offers = []
+        state.offersStatus = 'loading'
+        state.offersError = null
+      })
+      .addCase(fetchOffers.fulfilled, (state, action) => {
+        state.offers = action.payload
+        state.offersStatus = 'succeeded'
+      })
+      .addCase(fetchOffers.rejected, (state, action) => {
+        state.offersStatus = 'failed'
+        state.offersError = action.error.message
       })
   },
 })

@@ -1,9 +1,10 @@
-import { useSelector } from 'react-redux'
-import { selectSearch } from '@/features/search'
+import { useDispatch, useSelector } from 'react-redux'
+import { fetchOffers, selectSearch } from '@/features/search'
 import { ErrorAlert, Loader } from '@/shared/ui'
 
 export function BrandList() {
-  const { number, brands, brandsStatus, brandsError } = useSelector(selectSearch)
+  const dispatch = useDispatch()
+  const { number, brands, brandsStatus, brandsError, selectedPart } = useSelector(selectSearch)
 
   if (brandsStatus === 'idle') return null
   if (brandsStatus === 'loading') return <Loader text="Ищем производителей…" />
@@ -20,11 +21,14 @@ export function BrandList() {
           <button
             key={part.goodsID}
             type="button"
-            className="list-group-item list-group-item-action d-flex justify-content-between align-items-start gap-2"
+            className={`list-group-item list-group-item-action d-flex justify-content-between align-items-start gap-2${
+              part.goodsID === selectedPart?.goodsID ? ' active' : ''
+            }`}
+            onClick={() => dispatch(fetchOffers(part))}
           >
             <div>
               <div className="fw-semibold">{part.brand}</div>
-              <div className="small text-secondary">
+              <div className="small opacity-75">
                 {part.number} · {part.name}
               </div>
             </div>

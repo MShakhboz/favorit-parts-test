@@ -1,2 +1,2 @@
-export { searchReducer, selectSearch } from './model/searchSlice.js'
+export { fetchOffers, searchReducer, selectSearch } from './model/searchSlice.js'
 export { SearchInput } from './ui/SearchInput.jsx'
