@@ -1,20 +1,23 @@
 import { useEffect, useState } from 'react'
 import { useDispatch } from 'react-redux'
-import { fetchBrands } from '../model/searchSlice.js'
+import { fetchBrands, searchReset } from '../model/searchSlice.js'
 
 const DEBOUNCE_MS = 500
 
 export function SearchInput() {
   const dispatch = useDispatch()
   const [value, setValue] = useState('')
+  const number = value.trim()
 
-  // Запрос уходит, когда пользователь перестал печатать
+  // Запрос уходит, когда пользователь перестал печатать. Пустое поле сбрасывает поиск
   useEffect(() => {
-    const number = value.trim()
-    if (!number) return
+    if (!number) {
+      dispatch(searchReset())
+      return
+    }
     const timer = setTimeout(() => dispatch(fetchBrands(number)), DEBOUNCE_MS)
     return () => clearTimeout(timer)
-  }, [value, dispatch])
+  }, [number, dispatch])
 
   return (
     <div>
