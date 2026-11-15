@@ -1,13 +1,40 @@
-// Строки таблицы предложений: по одной на каждый склад, где есть деталь.
-// Деталь без остатков тоже попадает в таблицу — одной строкой без склада.
-export function getOfferRows(part) {
-  const warehouses = part.warehouses ?? []
-  if (warehouses.length === 0) return [{ id: part.goodsID, part, warehouse: null }]
-  return warehouses.map((warehouse) => ({ id: `${part.goodsID}:${warehouse.id}`, part, warehouse }))
+// Минимальная цена по складам детали или null, если остатков нет
+export function getMinPrice(part) {
+  const prices = (part.warehouses ?? []).map((warehouse) => warehouse.price)
+  return prices.length > 0 ? Math.min(...prices) : null
 }
 
-// Сначала предложения в наличии (дешёвые выше), затем позиции без остатков
-export function compareOfferRows(a, b) {
-  if (!a.warehouse || !b.warehouse) return Boolean(b.warehouse) - Boolean(a.warehouse)
-  return a.warehouse.price - b.warehouse.price
+// Склады детали от дешёвых к дорогим
+export function getSortedWarehouses(part) {
+  return [...(part.warehouses ?? [])].sort((a, b) => a.price - b.price)
+}
+
+// Сначала детали в наличии (дешёвые выше), затем позиции без остатков
+export function comparePartsByPrice(a, b) {
+  const priceA = getMinPrice(a)
+  const priceB = getMinPrice(b)
+  if (priceA === null || priceB === null) return (priceA === null) - (priceB === null)
+  return priceA - priceB
+}
+
+// Дата отгрузки: дата — день отгрузки, время — до какого часа нужно заказать
+export function parseShipmentDate(value) {
+  const date = new Date(value)
+  return value && !Number.isNaN(date.getTime()) ? date : null
+}
+
+// Сводка по ответу второго этапа: искомые детали, аналоги, число предложений и лучшая цена
+export function summarizeOffers(offers) {
+  const parts = [...offers].sort(comparePartsByPrice)
+  const analogues = offers.flatMap((part) => part.analogues ?? []).sort(comparePartsByPrice)
+  const allParts = [...parts, ...analogues]
+  const prices = allParts.map(getMinPrice).filter((price) => price !== null)
+  return {
+    parts,
+    availableParts: parts.filter((part) => getMinPrice(part) !== null),
+    analogues,
+    availableAnalogues: analogues.filter((part) => getMinPrice(part) !== null),
+    offersCount: allParts.reduce((sum, part) => sum + (part.warehouses?.length ?? 0), 0),
+    bestPrice: prices.length > 0 ? Math.min(...prices) : null,
+  }
 }

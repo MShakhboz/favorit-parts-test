@@ -4,7 +4,7 @@ export function EmptyState({ icon, title, children }) {
       <div className="empty-state-icon mb-3" aria-hidden="true">
         <i className={`bi ${icon}`} />
       </div>
-      <h2 className="h6 mb-1">{title}</h2>
+      <h2 className="text-lg fw-semibold mb-1">{title}</h2>
       {children && (
         <p className="small text-body-secondary mx-auto mb-0" style={{ maxWidth: '28rem' }}>
           {children}

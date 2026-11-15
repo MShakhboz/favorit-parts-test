@@ -11,19 +11,17 @@ export function SearchPage() {
   return (
     <main className="container py-4 py-lg-5">
       <header className="d-flex align-items-center gap-3 mb-4">
-        <div className="app-logo" aria-hidden="true">
+        <div className="featured-icon" aria-hidden="true">
           <i className="bi bi-gear-wide-connected" />
         </div>
         <div>
-          <h1 className="h3 mb-0">Поиск автозапчастей</h1>
+          <h1 className="page-title mb-0">Поиск автозапчастей</h1>
           <p className="text-body-secondary mb-0">Цены, наличие на складах и аналоги по артикулу</p>
         </div>
       </header>
 
-      <section className="card shadow-sm mb-4">
-        <div className="card-body p-3 p-md-4">
-          <SearchInput />
-        </div>
+      <section className="pb-3 mb-4 border-bottom">
+        <SearchInput />
       </section>
 
       {brandsStatus === 'idle' ? (
