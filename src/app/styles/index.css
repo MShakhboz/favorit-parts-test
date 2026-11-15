@@ -62,6 +62,15 @@
   --bs-secondary-text-emphasis: var(--gray-400);
 }
 
+/*
+ * Bootstrap включает плавную прокрутку для всего документа. Виртуализатор таблицы поправляет позицию
+ * прокрутки, когда меряет строки, — эти поправки должны быть мгновенными, иначе анимация борется
+ * с прокруткой пользователя. Там, где плавность нужна, её задаём явно (scrollIntoView({ behavior }))
+ */
+:root {
+  scroll-behavior: auto;
+}
+
 /* Типографика */
 .small,
 small {
@@ -414,14 +423,52 @@ small {
 }
 
 .offers-table .offer-name {
-  min-width: 8rem;
   vertical-align: top;
 }
 
-@media (min-width: 768px) {
-  .offers-table .offer-name {
-    min-width: 11rem;
+/* Таблица виртуализирована: видимые строки меняются при прокрутке, поэтому ширины колонок
+   фиксированы на всех экранах. С автоматической раскладкой ширины зависели бы от видимых строк,
+   высоты строк менялись бы при прокрутке, а виртуализатор бесконечно поправлял бы позицию */
+.offers-table {
+  table-layout: fixed;
+}
+
+.offers-table .col-price {
+  width: 9rem;
+}
+
+.offers-table .col-stock {
+  width: 5rem;
+}
+
+.offers-table .offer-name {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 767.98px) {
+  .offers-table > :not(caption) > * > * {
+    padding: 0.75rem;
   }
+}
+
+@media (min-width: 768px) {
+  .offers-table .col-warehouse {
+    width: 6.5rem;
+  }
+
+  .offers-table .col-shipment {
+    width: 8.5rem;
+  }
+
+  .offers-table .col-stock {
+    width: 8.5rem;
+  }
+}
+
+/* Позицию прокрутки при изменении высот поправляет виртуализатор — встроенная «якорная»
+   прокрутка браузера поверх неё дала бы двойную поправку */
+.offers-panel {
+  overflow-anchor: none;
 }
 
 /* Наименование остаётся на виду, пока прокручиваются склады этой детали */

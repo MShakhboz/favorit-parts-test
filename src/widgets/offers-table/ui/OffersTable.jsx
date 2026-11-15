@@ -1,5 +1,6 @@
 import { skipToken } from '@reduxjs/toolkit/query/react'
-import { useEffect, useRef, useState } from 'react'
+import { useWindowVirtualizer } from '@tanstack/react-virtual'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useSelector } from 'react-redux'
 import {
   getSortedWarehouses,
@@ -22,11 +23,18 @@ export function OffersTable() {
   const panelRef = useRef(null)
 
   // На узком экране таблица ниже списка производителей — прокручиваем к ней после выбора.
-  // Повторяем, когда данные загрузились: пока виден скелетон, страница может быть короче нужного
+  // Повторяем, когда данные загрузились: пока виден скелетон, страница может быть короче нужного.
+  // Ждём два кадра, чтобы виртуализатор успел измерить строки — его мгновенная поправка
+  // прокрутки иначе прервала бы плавную
   useEffect(() => {
     if (!selectedPart || !window.matchMedia('(max-width: 991.98px)').matches) return
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    panelRef.current?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => {
+        panelRef.current?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
+      })
+    })
+    return () => cancelAnimationFrame(frame)
   }, [selectedPart, query.currentData])
 
   return (
@@ -103,6 +111,60 @@ function OffersStats({ summary }) {
   )
 }
 
+// Высоты для первой отрисовки; настоящие виртуализатор измеряет сам. На телефоне строки выше:
+// под ценой ещё склад и дата
+const GROUP_HEIGHT = 43
+const ROW_HEIGHT = { wide: 61, narrow: 82 }
+
+const isWideScreen = () => window.matchMedia('(min-width: 768px)').matches
+
+// Плоский список элементов таблицы: заголовки групп, детали (каждая со своими складами) и сообщения.
+// rowIndex — номер первой строки элемента в таблице для aria-rowindex (строка 1 — шапка)
+function buildItems(parts, analogues, analoguesTotal) {
+  const items = [{ key: 'group:parts', type: 'group', title: 'Искомая деталь' }]
+  if (parts.length > 0) items.push(...parts.map((part) => ({ key: part.goodsID, type: 'part', part })))
+  else items.push({ key: 'message:parts', type: 'message', text: 'Искомой детали нет в наличии.' })
+
+  items.push({ key: 'group:analogues', type: 'group', title: 'Аналоги', count: analogues.length })
+  if (analogues.length > 0) items.push(...analogues.map((part) => ({ key: part.goodsID, type: 'part', part })))
+  else {
+    const text = analoguesTotal === 0 ? 'Аналогов не найдено.' : 'Аналогов в наличии нет.'
+    items.push({ key: 'message:analogues', type: 'message', text })
+  }
+
+  let rowIndex = 2
+  return items.map((item) => {
+    const rows = item.type === 'part' ? Math.max(item.part.warehouses?.length ?? 0, 1) : 1
+    const result = { ...item, rows, rowIndex }
+    rowIndex += rows
+    return result
+  })
+}
+
+// Расстояние от начала документа до первой строки тела таблицы: виртуализатор следит за прокруткой окна.
+// Шапка таблицы липкая, поэтому считаем от самой таблицы плюс высота шапки
+function useTableBodyOffset(tableRef, headRef) {
+  const [offset, setOffset] = useState(0)
+
+  useLayoutEffect(() => {
+    const update = () => {
+      if (!tableRef.current || !headRef.current) return
+      const top = tableRef.current.getBoundingClientRect().top + window.scrollY
+      setOffset(Math.round(top + headRef.current.offsetHeight))
+    }
+    update()
+    // Всё, что выше таблицы, может поменять высоту (шрифты, перенос строк, ширина окна)
+    const observer = new ResizeObserver(update)
+    observer.observe(document.body)
+    return () => observer.disconnect()
+  }, [tableRef, headRef])
+
+  return offset
+}
+
+// Таблица виртуализирована: в DOM только видимые детали и небольшой запас, остальное — пустые строки-распорки.
+// Единица виртуализации — деталь целиком (tbody со всеми её складами), поэтому группировка
+// с rowspan и липкие наименования работают как раньше
 function OffersGrid({ summary }) {
   const [filter, setFilter] = useState('available')
   const { parts, availableParts, analogues, availableAnalogues, bestPrice } = summary
@@ -112,6 +174,28 @@ function OffersGrid({ summary }) {
     { id: 'available', label: 'В наличии', count: availableParts.length + availableAnalogues.length },
     { id: 'all', label: 'Все позиции', count: parts.length + analogues.length },
   ]
+
+  const items = buildItems(shownParts, shownAnalogues, analogues.length)
+  const rowCount = items.reduce((sum, item) => sum + item.rows, 1)
+
+  const tableRef = useRef(null)
+  const headRef = useRef(null)
+  const scrollMargin = useTableBodyOffset(tableRef, headRef)
+  const virtualizer = useWindowVirtualizer({
+    count: items.length,
+    estimateSize: (index) => {
+      const item = items[index]
+      if (item.type !== 'part') return GROUP_HEIGHT
+      return item.rows * (isWideScreen() ? ROW_HEIGHT.wide : ROW_HEIGHT.narrow)
+    },
+    getItemKey: (index) => items[index].key,
+    overscan: 6,
+    scrollMargin,
+  })
+  const virtualItems = virtualizer.getVirtualItems()
+  const paddingTop = virtualItems.length > 0 ? virtualItems[0].start - scrollMargin : 0
+  const paddingBottom =
+    virtualItems.length > 0 ? virtualizer.getTotalSize() - (virtualItems.at(-1).end - scrollMargin) : 0
 
   return (
     <>
@@ -130,60 +214,67 @@ function OffersGrid({ summary }) {
         ))}
       </div>
       <div className="table-responsive-lg">
-        <table className="table align-middle mb-0 offers-table">
-          <thead>
-            <tr>
+        <table ref={tableRef} className="table align-middle mb-0 offers-table" aria-rowcount={rowCount}>
+          <thead ref={headRef}>
+            <tr aria-rowindex={1}>
               <th scope="col">Наименование / Производитель</th>
-              <th scope="col" className="d-none d-md-table-cell">
+              <th scope="col" className="col-warehouse d-none d-md-table-cell">
                 Склад
               </th>
-              <th scope="col" className="d-none d-md-table-cell">
+              <th scope="col" className="col-shipment d-none d-md-table-cell">
                 Отгрузка
               </th>
-              <th scope="col" className="text-end">
+              <th scope="col" className="col-price text-end">
                 Цена
               </th>
-              <th scope="col" className="text-end">
+              <th scope="col" className="col-stock text-end">
                 Остаток
               </th>
             </tr>
           </thead>
 
-          <GroupRow title="Искомая деталь" />
-          {shownParts.map((part) => (
-            <PartRows key={part.goodsID} part={part} bestPrice={bestPrice} />
-          ))}
-          {shownParts.length === 0 && <MessageRow>Искомой детали нет в наличии.</MessageRow>}
-
-          <GroupRow title="Аналоги" count={shownAnalogues.length} />
-          {shownAnalogues.map((part) => (
-            <PartRows key={part.goodsID} part={part} bestPrice={bestPrice} />
-          ))}
-          {shownAnalogues.length === 0 && (
-            <MessageRow>{analogues.length === 0 ? 'Аналогов не найдено.' : 'Аналогов в наличии нет.'}</MessageRow>
-          )}
+          {paddingTop > 0 && <SpacerRow height={paddingTop} />}
+          {virtualItems.map((virtualItem) => {
+            const item = items[virtualItem.index]
+            const itemProps = { ref: virtualizer.measureElement, index: virtualItem.index, rowIndex: item.rowIndex }
+            if (item.type === 'group') return <GroupRow key={item.key} {...itemProps} title={item.title} count={item.count} />
+            if (item.type === 'message') return <MessageRow key={item.key} {...itemProps} text={item.text} />
+            return <PartRows key={item.key} {...itemProps} part={item.part} bestPrice={bestPrice} />
+          })}
+          {paddingBottom > 0 && <SpacerRow height={paddingBottom} />}
         </table>
       </div>
     </>
   )
 }
 
-function MessageRow({ children }) {
+// Пустая строка вместо деталей за пределами экрана — сохраняет высоту таблицы и полосу прокрутки
+function SpacerRow({ height }) {
   return (
-    <tbody>
+    <tbody aria-hidden="true">
       <tr>
+        <td colSpan={COLUMNS} className="p-0 border-0" style={{ height }} />
+      </tr>
+    </tbody>
+  )
+}
+
+function MessageRow({ ref, index, rowIndex, text }) {
+  return (
+    <tbody ref={ref} data-index={index}>
+      <tr aria-rowindex={rowIndex}>
         <td colSpan={COLUMNS} className="text-body-secondary">
-          {children}
+          {text}
         </td>
       </tr>
     </tbody>
   )
 }
 
-function GroupRow({ title, count }) {
+function GroupRow({ ref, index, rowIndex, title, count }) {
   return (
-    <tbody>
-      <tr className="offers-group">
+    <tbody ref={ref} data-index={index}>
+      <tr className="offers-group" aria-rowindex={rowIndex}>
         <th colSpan={COLUMNS} scope="colgroup">
           {title}
           {count !== undefined && <span className="count-badge ms-2">{count}</span>}
@@ -194,7 +285,7 @@ function GroupRow({ title, count }) {
 }
 
 // Деталь и её склады: наименование показываем один раз на всю группу строк
-function PartRows({ part, bestPrice }) {
+function PartRows({ ref, index, rowIndex, part, bestPrice }) {
   const warehouses = getSortedWarehouses(part)
   const nameCell = (
     <th scope="rowgroup" rowSpan={Math.max(warehouses.length, 1)} className="offer-name fw-normal">
@@ -209,14 +300,14 @@ function PartRows({ part, bestPrice }) {
 
   if (warehouses.length === 0) {
     return (
-      <tbody className="offer-part is-unavailable">
-        <tr>
+      <tbody ref={ref} data-index={index} className="offer-part is-unavailable">
+        <tr aria-rowindex={rowIndex}>
           {nameCell}
           <td className="d-none d-md-table-cell">—</td>
           <td className="d-none d-md-table-cell">—</td>
           <td className="text-end">—</td>
           <td className="text-end">
-            <StockBadge count={0} />
+            <StockBadge count={0} compact />
           </td>
         </tr>
       </tbody>
@@ -224,12 +315,12 @@ function PartRows({ part, bestPrice }) {
   }
 
   return (
-    <tbody className="offer-part">
-      {warehouses.map((warehouse, index) => {
+    <tbody ref={ref} data-index={index} className="offer-part">
+      {warehouses.map((warehouse, warehouseIndex) => {
         const shipment = parseShipmentDate(warehouse.shipmentDate)
         return (
-          <tr key={warehouse.id}>
-            {index === 0 && nameCell}
+          <tr key={warehouse.id} aria-rowindex={rowIndex + warehouseIndex}>
+            {warehouseIndex === 0 && nameCell}
             <td className="text-nowrap d-none d-md-table-cell">{warehouse.code || '—'}</td>
             <td className="text-nowrap d-none d-md-table-cell">
               {shipment ? (
@@ -256,7 +347,7 @@ function PartRows({ part, bestPrice }) {
               </div>
             </td>
             <td className="text-end">
-              <StockBadge count={warehouse.stock} />
+              <StockBadge count={warehouse.stock} compact />
             </td>
           </tr>
         )
