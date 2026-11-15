@@ -1,0 +1,154 @@
+/* Палитра «industrial slate + stock green» поверх переменных Bootstrap */
+:root {
+  --bs-body-font-family: 'Fira Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --bs-font-monospace: 'Fira Code', SFMono-Regular, Menlo, Consolas, monospace;
+  --bs-body-bg: #f8fafc;
+  --bs-body-color: #0f172a;
+  --bs-secondary-color: #475569;
+  --bs-border-color: #e2e8f0;
+  --bs-primary: #334155;
+  --bs-primary-rgb: 51, 65, 85;
+  --bs-success: #059669;
+  --bs-success-rgb: 5, 150, 105;
+  --app-accent: #334155;
+  --app-focus-ring: 0 0 0 0.25rem rgba(51, 65, 85, 0.25);
+}
+
+.card {
+  --bs-card-bg: #fff;
+  --bs-card-cap-bg: #fff;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.app-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 0.75rem;
+  background: #0f172a;
+  color: #fff;
+  font-size: 1.5rem;
+}
+
+/* Поле поиска с иконкой внутри */
+.search-field {
+  position: relative;
+}
+
+.search-field-icon {
+  position: absolute;
+  top: 50%;
+  left: 1rem;
+  transform: translateY(-50%);
+  color: var(--bs-secondary-color);
+  pointer-events: none;
+}
+
+.search-field .form-control {
+  padding-left: 2.75rem;
+}
+
+.form-control:focus {
+  border-color: #64748b;
+  box-shadow: var(--app-focus-ring);
+}
+
+.form-text {
+  min-height: 2rem;
+}
+
+/* Список производителей */
+.list-group {
+  --bs-list-group-action-color: var(--bs-body-color);
+  --bs-list-group-active-bg: var(--app-accent);
+  --bs-list-group-active-border-color: var(--app-accent);
+}
+
+.list-group-item-action {
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.list-group-item-action:focus-visible {
+  z-index: 3;
+  outline: 2px solid var(--app-accent);
+  outline-offset: -2px;
+}
+
+.list-group-item.active .text-body-secondary {
+  color: rgba(255, 255, 255, 0.75) !important;
+}
+
+@media (min-width: 992px) {
+  .brand-panel {
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+  }
+}
+
+/* Таблица предложений */
+.offers-table {
+  --bs-table-bg: #fff;
+}
+
+.offers-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  box-shadow: inset 0 -1px 0 var(--bs-border-color);
+  border-bottom: 0;
+  color: var(--bs-secondary-color);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.offers-table .offers-group > th {
+  --bs-table-bg: #f1f5f9;
+  color: var(--bs-secondary-color);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.offers-table tr.is-unavailable > td {
+  color: var(--bs-secondary-color);
+}
+
+/* Пустые состояния */
+.empty-state {
+  border: 1px dashed #cbd5e1;
+  border-radius: var(--bs-border-radius-lg);
+  background: #fff;
+}
+
+.empty-state-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: var(--app-accent);
+  font-size: 1.25rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .list-group-item-action {
+    transition: none;
+  }
+
+  .placeholder-glow .placeholder {
+    animation: none;
+  }
+}
