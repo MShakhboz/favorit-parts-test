@@ -1,18 +1,18 @@
 import { useDispatch, useSelector } from 'react-redux'
-import { getMinPrice, StockBadge } from '@/entities/part'
-import { fetchBrands, fetchOffers, selectSearch } from '@/features/search'
+import { getMinPrice, StockBadge, useGetBrandsQuery } from '@/entities/part'
+import { partSelected, selectSearch } from '@/features/search'
 import { formatPrice } from '@/shared/lib'
 import { EmptyState, ErrorAlert, Skeleton } from '@/shared/ui'
 
 export function BrandList() {
   const dispatch = useDispatch()
-  const { number, brands, brandsStatus, brandsError, selectedPart } = useSelector(selectSearch)
+  const { number, selectedPart } = useSelector(selectSearch)
+  // currentData — только для текущего артикула: пока грузится новый, старый список не показываем
+  const { currentData: brands, isError, error, refetch } = useGetBrandsQuery(number, { skip: !number })
 
-  if (brandsStatus === 'idle') return null
-  if (brandsStatus === 'failed') {
-    return <ErrorAlert message={brandsError} onRetry={() => dispatch(fetchBrands(number))} />
-  }
-  if (brandsStatus === 'succeeded' && brands.length === 0) {
+  if (!number) return null
+  if (isError) return <ErrorAlert message={error.message} onRetry={refetch} />
+  if (brands?.length === 0) {
     return (
       <EmptyState icon="bi-inbox" title={`По артикулу «${number}» ничего не найдено`}>
         Проверьте номер детали: возможно, в нём опечатка или лишние символы.
@@ -24,12 +24,9 @@ export function BrandList() {
     <section className="card shadow-sm brand-panel">
       <div className="card-header d-flex justify-content-between align-items-center py-3">
         <h2 className="text-lg fw-semibold mb-0">Производители</h2>
-        {brandsStatus === 'succeeded' && <span className="count-badge">{brands.length}</span>}
-        {brandsStatus === 'loading' && <Skeleton pill width="1.75rem" />}
+        {brands ? <span className="count-badge">{brands.length}</span> : <Skeleton pill width="1.75rem" />}
       </div>
-      {brandsStatus === 'loading' ? (
-        <BrandListSkeleton />
-      ) : (
+      {brands ? (
         <div className="list-group brand-nav">
           {brands.map((part) => {
             const isActive = part.goodsID === selectedPart?.goodsID
@@ -40,7 +37,7 @@ export function BrandList() {
                 type="button"
                 className={`list-group-item list-group-item-action${isActive ? ' active' : ''}`}
                 aria-current={isActive || undefined}
-                onClick={() => dispatch(fetchOffers(part))}
+                onClick={() => dispatch(partSelected(part))}
               >
                 <div className="d-flex justify-content-between align-items-start gap-2">
                   <span className="text-lg fw-medium">{part.brand}</span>
@@ -55,6 +52,8 @@ export function BrandList() {
             )
           })}
         </div>
+      ) : (
+        <BrandListSkeleton />
       )}
     </section>
   )

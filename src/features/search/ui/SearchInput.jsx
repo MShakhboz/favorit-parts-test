@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
+import { useGetBrandsQuery } from '@/entities/part'
 import { Loader } from '@/shared/ui'
-import { fetchBrands, searchReset, selectSearch } from '../model/searchSlice.js'
+import { searchReset, searchSubmitted, selectSearch } from '../model/searchSlice.js'
 
 const DEBOUNCE_MS = 500
 const EXAMPLES = ['0189', '7160500039S']
 
 export function SearchInput() {
   const dispatch = useDispatch()
-  const { brandsStatus } = useSelector(selectSearch)
+  const { number: searchedNumber } = useSelector(selectSearch)
+  const { isFetching } = useGetBrandsQuery(searchedNumber, { skip: !searchedNumber })
   const [value, setValue] = useState('')
   const timerRef = useRef(null)
   const number = value.trim()
@@ -19,7 +21,7 @@ export function SearchInput() {
       dispatch(searchReset())
       return
     }
-    const timer = setTimeout(() => dispatch(fetchBrands(number)), DEBOUNCE_MS)
+    const timer = setTimeout(() => dispatch(searchSubmitted(number)), DEBOUNCE_MS)
     timerRef.current = timer
     return () => clearTimeout(timer)
   }, [number, dispatch])
@@ -29,7 +31,7 @@ export function SearchInput() {
     event.preventDefault()
     if (!number) return
     clearTimeout(timerRef.current)
-    dispatch(fetchBrands(number))
+    dispatch(searchSubmitted(number))
   }
 
   return (
@@ -59,7 +61,7 @@ export function SearchInput() {
         </button>
       </div>
       <div id="part-number-help" className="form-text d-flex flex-wrap align-items-center gap-2 mt-2">
-        {brandsStatus === 'loading' ? (
+        {isFetching ? (
           <Loader text="Ищем производителей…" />
         ) : (
           <>

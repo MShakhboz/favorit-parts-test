@@ -1,1 +1,1 @@
-export { getBrands, getOffers } from './favorit.js'
+export { baseApi } from './baseApi.js'

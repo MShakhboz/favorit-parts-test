@@ -1,12 +1,15 @@
 import { useSelector } from 'react-redux'
+import { useGetBrandsQuery } from '@/entities/part'
 import { SearchInput, selectSearch } from '@/features/search'
 import { EmptyState } from '@/shared/ui'
 import { BrandList } from '@/widgets/brand-list'
 import { OffersTable } from '@/widgets/offers-table'
 
 export function SearchPage() {
-  const { brands, brandsStatus } = useSelector(selectSearch)
-  const hasBrands = brands.length > 0
+  const { number } = useSelector(selectSearch)
+  const { currentData: brands, isError } = useGetBrandsQuery(number, { skip: !number })
+  const hasBrands = brands?.length > 0
+  const isLoading = Boolean(number) && !brands && !isError
 
   return (
     <main className="container py-4 py-lg-5">
@@ -24,14 +27,14 @@ export function SearchPage() {
         <SearchInput />
       </section>
 
-      {brandsStatus === 'idle' ? (
+      {!number ? (
         <EmptyState icon="bi-upc-scan" title="Введите артикул детали">
           Покажем производителей, которые выпускают деталь с таким номером. Выберите производителя — и увидите цены,
           остатки на складах и аналоги.
         </EmptyState>
       ) : (
         <div className="row g-4">
-          <div className={hasBrands || brandsStatus === 'loading' ? 'col-lg-4' : 'col-12'}>
+          <div className={hasBrands || isLoading ? 'col-lg-4' : 'col-12'}>
             <BrandList />
           </div>
           {hasBrands && (

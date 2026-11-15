@@ -1,61 +1,68 @@
+import { skipToken } from '@reduxjs/toolkit/query/react'
 import { useEffect, useRef, useState } from 'react'
-import { useDispatch, useSelector } from 'react-redux'
-import { getSortedWarehouses, parseShipmentDate, StockBadge, summarizeOffers } from '@/entities/part'
-import { fetchOffers, selectSearch } from '@/features/search'
+import { useSelector } from 'react-redux'
+import {
+  getSortedWarehouses,
+  parseShipmentDate,
+  StockBadge,
+  summarizeOffers,
+  useGetOffersQuery,
+} from '@/entities/part'
+import { selectSearch } from '@/features/search'
 import { formatDate, formatPrice, formatTime } from '@/shared/lib'
 import { EmptyState, ErrorAlert, Skeleton } from '@/shared/ui'
 
 const COLUMNS = 5
 
 export function OffersTable() {
-  const { selectedPart, offersStatus } = useSelector(selectSearch)
+  const { selectedPart } = useSelector(selectSearch)
+  const query = useGetOffersQuery(
+    selectedPart ? { number: selectedPart.number, brand: selectedPart.brand } : skipToken,
+  )
   const panelRef = useRef(null)
 
   // На узком экране таблица ниже списка производителей — прокручиваем к ней после выбора.
   // Повторяем, когда данные загрузились: пока виден скелетон, страница может быть короче нужного
   useEffect(() => {
-    if (!selectedPart || offersStatus === 'idle') return
-    if (!window.matchMedia('(max-width: 991.98px)').matches) return
+    if (!selectedPart || !window.matchMedia('(max-width: 991.98px)').matches) return
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     panelRef.current?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
-  }, [selectedPart, offersStatus])
+  }, [selectedPart, query.currentData])
 
   return (
     <div ref={panelRef} className="offers-panel">
-      <OffersContent />
+      <OffersContent part={selectedPart} query={query} />
     </div>
   )
 }
 
-function OffersContent() {
-  const dispatch = useDispatch()
-  const { selectedPart, offers, offersStatus, offersError } = useSelector(selectSearch)
+function OffersContent({ part, query }) {
+  // currentData — только для выбранной детали: при смене бренда старая таблица не мелькает
+  const { currentData: offers, isError, error, refetch } = query
 
-  if (offersStatus === 'idle') {
+  if (!part) {
     return (
       <EmptyState icon="bi-hand-index" title="Выберите производителя">
         Нажмите на производителя в списке, чтобы увидеть цены, остатки на складах и аналоги детали.
       </EmptyState>
     )
   }
-  if (offersStatus === 'failed') {
-    return <ErrorAlert message={offersError} onRetry={() => dispatch(fetchOffers(selectedPart))} />
-  }
+  if (isError) return <ErrorAlert message={error.message} onRetry={refetch} />
 
-  const summary = offersStatus === 'succeeded' && offers.length > 0 ? summarizeOffers(offers) : null
+  const summary = offers?.length > 0 ? summarizeOffers(offers) : null
 
   return (
     <section aria-labelledby="offers-title">
       <div className="mb-3">
         <h2 id="offers-title" className="title-md mb-1">
-          {selectedPart.brand} <span className="fw-normal text-body-secondary">{selectedPart.number}</span>
+          {part.brand} <span className="fw-normal text-body-secondary">{part.number}</span>
         </h2>
-        <p className="text-body-secondary mb-0">{selectedPart.name}</p>
+        <p className="text-body-secondary mb-0">{part.name}</p>
       </div>
 
-      {offersStatus === 'loading' && <OffersSkeleton />}
+      {!offers && <OffersSkeleton />}
 
-      {offersStatus === 'succeeded' && !summary && (
+      {offers?.length === 0 && (
         <EmptyState icon="bi-inbox" title="Предложений не найдено">
           По этой детали сейчас нет предложений. Попробуйте выбрать другого производителя.
         </EmptyState>
@@ -65,7 +72,7 @@ function OffersContent() {
         <>
           <OffersStats summary={summary} />
           <div className="card shadow-sm">
-            <OffersGrid key={selectedPart.goodsID} summary={summary} />
+            <OffersGrid key={part.goodsID} summary={summary} />
           </div>
         </>
       )}

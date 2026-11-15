@@ -9,7 +9,7 @@
 
 ## Стек
 
-React 19, Redux Toolkit, Bootstrap 5, Vite. Без TypeScript.
+React 19, Redux Toolkit с RTK Query, Bootstrap 5, Vite. Без TypeScript.
 
 ## Запуск
 
@@ -41,12 +41,12 @@ pnpm lint      # ESLint
 
 ```
 src/
-├── app/        Redux store, провайдер, глобальные стили
+├── app/        Redux store (слайс поиска + RTK Query), провайдер, глобальные стили
 ├── pages/      страница поиска
 ├── widgets/    список производителей, таблица предложений
-├── features/   поле поиска и слайс с запросами обоих этапов
-├── entities/   деталь: строки таблицы и сортировка предложений
-└── shared/     клиент API Favorit, Loader, ErrorAlert
+├── features/   поле поиска и слайс состояния интерфейса (артикул, выбранная деталь)
+├── entities/   деталь: эндпоинты RTK Query, сводка и сортировка предложений, бейдж остатка
+└── shared/     базовый API RTK Query (ключ, ошибки), форматирование, общие компоненты UI
 ```
 
 `@/` — алиас для `src/`.

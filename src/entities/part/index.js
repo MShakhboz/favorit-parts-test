@@ -1,3 +1,4 @@
+export { useGetBrandsQuery, useGetOffersQuery } from './api/partApi.js'
 export {
   comparePartsByPrice,
   getMinPrice,
